@@ -1,0 +1,9 @@
+{
+    "num_users": 100,
+    "num_enterprises": 10,
+    "bandwidth_range": [10, 100],
+    "latency_range": [10, 100],
+    "gpu_power_range": [1.5, 3.0],
+    "battery_capacity": 12.32
+  }
+  

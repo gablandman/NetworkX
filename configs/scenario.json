@@ -1,0 +1,15 @@
+[
+    {
+      "name": "Baseline Scenario",
+      "num_users": 100,
+      "task_complexity": 10,
+      "network_type": "WiFi"
+    },
+    {
+      "name": "High Load Scenario",
+      "num_users": 200,
+      "task_complexity": 20,
+      "network_type": "5G"
+    }
+  ]
+  
