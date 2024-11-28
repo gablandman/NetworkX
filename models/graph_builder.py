@@ -45,13 +45,9 @@ class GraphBuilder:
             latency=latency,
         )
 
-    def create_random_graph(self, num_users, num_enterprises, connection_probability=0.9):
+    def create_empty_graph(self, num_users, num_enterprises):
         """
-        Generate a random graph with specified numbers of users and enterprises.
-
-        :param num_users: Number of user nodes.
-        :param num_enterprises: Number of enterprise nodes.
-        :param connection_probability: Probability of a connection between a user and an enterprise.
+        Generate an empty graph with nodes but no edges.
         """
         for i in range(num_users):
             self.add_user_node(
@@ -64,19 +60,6 @@ class GraphBuilder:
         for j in range(num_enterprises):
             self.add_enterprise_node(node_id=f"enterprise_{j}")
 
-        # Add edges with a given connection probability
-        user_nodes = [node for node, data in self.graph.nodes(data=True) if data["type"] == "user"]
-        enterprise_nodes = [node for node, data in self.graph.nodes(data=True) if data["type"] == "enterprise"]
-
-        for user_node in user_nodes:
-            for enterprise_node in enterprise_nodes:
-                if random.random() < connection_probability:
-                    self.add_edge(
-                        user_node_id=user_node,
-                        enterprise_node_id=enterprise_node,
-                        bandwidth=random.randint(10, 100),  # Random bandwidth in Mbps
-                        latency=random.randint(10, 50),  # Random latency in ms
-                    )
 
     def get_graph(self):
         """
