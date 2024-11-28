@@ -17,7 +17,7 @@ def plot_graph(graph):
         for u, v, data in graph.edges(data=True)
     }
 
-    plt.figure(figsize=(40, 30))
+    plt.figure(figsize=(20, 10))
     nx.draw(
         graph,
         pos,
