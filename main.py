@@ -23,7 +23,7 @@ def generate_tasks(graph, num_tasks_per_enterprise):
 
 def main():
     builder = GraphBuilder()
-    builder.create_random_graph(10, 3, connection_probability=0.3)
+    builder.create_empty_graph(10, 3)  # Create nodes without edges
     graph = builder.get_graph()
 
     event_manager = EventManager()
@@ -36,8 +36,10 @@ def main():
     # Initialize the simulator
     events = event_manager.get_events()
     simulator = DynamicSimulator(graph, events)
-    
+
+    # Run the interactive simulation
     simulator.run()
+
 
 if __name__ == "__main__":
     main()

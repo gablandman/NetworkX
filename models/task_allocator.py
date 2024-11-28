@@ -1,6 +1,8 @@
+import random
+
 class TaskAllocator:
     """
-    Manages the allocation of tasks from enterprise nodes to user nodes.
+    Manages the allocation of tasks from enterprise nodes to user nodes in a sequential manner.
     """
     def __init__(self, graph, event_manager):
         """
@@ -13,9 +15,11 @@ class TaskAllocator:
         self.event_manager = event_manager
         self.current_time = 0
 
-    def allocate_tasks(self):
+    def allocate_tasks(self, d=3):
         """
-        Allocate tasks from enterprises to users and generate events.
+        Allocate tasks from enterprises to users in chains of size d.
+
+        :param d: Number of devices in the chain.
         """
         for enterprise, data in self.graph.nodes(data=True):
             if data["type"] == "enterprise":
@@ -23,55 +27,60 @@ class TaskAllocator:
                 tasks = enterprise_node.get_pending_tasks()
 
                 for task in tasks:
-                    self._assign_task(enterprise, task)
+                    self._assign_chain(enterprise, task, d)
 
-    def _assign_task(self, enterprise_id, task):
+    def _assign_chain(self, enterprise_id, task, d):
         """
-        Assign a task to a suitable user node and generate events.
-
-        :param enterprise_id: The enterprise node generating the task.
-        :param task: The task to be assigned.
+        Dynamically assign a chain of devices for processing a task.
         """
+        # Select d devices dynamically
         candidates = [
-            (user, edge_data)
-            for user, entreprise, edge_data in self.graph.in_edges(enterprise_id, data=True)
-            if self.graph.nodes[user]["data"].gpu_power * 1e12 >= task["complexity"]
+            (user, self.graph.nodes[user]["data"])
+            for user in self.graph.nodes
+            if self.graph.nodes[user]["type"] == "user"
         ]
+        candidates = sorted(candidates, key=lambda x: (len(x[1].queue), -x[1].gpu_power))[:d]
 
-        if not candidates:
-            print(f"No suitable user nodes found for task from {enterprise_id}")
+        if len(candidates) < d:
+            print(f"Not enough devices for chain processing from {enterprise_id}")
             return
 
-        # Select user with the lowest latency
-        best_user, best_edge_data = min(candidates, key=lambda x: x[1]["latency"])
-        self._process_task(best_user, enterprise_id, task, best_edge_data)
+        previous_node = enterprise_id
+        portion_size = task["complexity"] / d
 
-    def _process_task(self, user_id, enterprise_id, task, edge_data):
-        """
-        Simulate processing a task by a user node and generate events.
+        for i, (node_id, user_data) in enumerate(candidates):
+            # Simulate transmission and calculation times
+            transmission_time = task["data_size"] / random.randint(10, 100)  # Simulated bandwidth
+            gpu_time = portion_size / (user_data.gpu_power * 1e12)
 
-        :param user_id: The user node processing the task.
-        :param enterprise_id: The enterprise node assigning the task.
-        :param task: The task being processed.
-        :param edge_data: Edge data between user and enterprise.
-        """
-        gpu_time = task["complexity"] / (self.graph.nodes[user_id]["data"].gpu_power * 1e12)
-        transmission_time = task["data_size"] / edge_data["bandwidth"]
-        total_time = gpu_time + transmission_time
+            # Generate events for the edge
+            edge = (previous_node, node_id)
+            self.event_manager.add_event(
+                self.current_time + transmission_time,
+                "data_transmission",
+                from_node=previous_node,
+                to_node=node_id,
+                size=task["data_size"],
+                edge=edge  # Specify the active edge
+            )
+            self.event_manager.add_event(
+                self.current_time + transmission_time + gpu_time,
+                "calculation",
+                node=node_id,
+                task={"portion": portion_size, "total_task": task},
+                edge=edge  # Specify the active edge
+            )
 
-        # Generate events
-        self.event_manager.add_event(self.current_time, "start_calculation", node=user_id, task=task)
+            self.current_time += transmission_time + gpu_time
+            previous_node = node_id
+
+        # Final transmission back to the enterprise
+        final_edge = (previous_node, enterprise_id)
         self.event_manager.add_event(
-            self.current_time + transmission_time, "data_transmission", from_node=enterprise_id, to_node=user_id, size=task["data_size"]
-        )
-        self.event_manager.add_event(self.current_time + total_time, "end_calculation", node=user_id, task=task)
-
-        # Update task state
-        task["completed"] = True
-        task["gpu_time"] = gpu_time
-        task["transmission_time"] = transmission_time
-        self.current_time += total_time  # Increment time for this task
-        print(
-            f"Task from {enterprise_id} completed by {user_id}: "
-            f"GPU Time = {gpu_time:.2f}s, Transmission Time = {transmission_time:.2f}s, Total Time = {total_time:.2f}s"
+            self.current_time,
+            "data_transmission",
+            from_node=previous_node,
+            to_node=enterprise_id,
+            size=task["data_size"],
+            edge=final_edge  # Specify the active edge
         )
