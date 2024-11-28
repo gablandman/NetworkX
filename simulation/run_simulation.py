@@ -20,6 +20,7 @@ def generate_tasks(graph, num_tasks_per_enterprise):
                 print(f"Task created for {node}: {complexity:.2e} FLOPS, {data_size:.2f} MB")
 
 
+
 def run_simulation(num_users, num_enterprises, num_tasks_per_enterprise):
     """
     Run a simulation with the specified parameters.
