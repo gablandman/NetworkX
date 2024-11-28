@@ -8,20 +8,17 @@ class DynamicSimulator:
     """
     Simulates the graph dynamically by processing events.
     """
-    def __init__(self, graph, events):
+    def __init__(self, graph, event_manager):
         """
         Initialize the simulator.
 
         :param graph: The initial graph.
-        :param events: List of events to simulate.
+        :param event_manager: The event manager containing the global timeline of events.
         """
         self.graph = graph
-        self.events = events
-        self.current_index = 0
-
-        # Fixed positions for nodes
+        self.event_manager = event_manager  # Store the event manager
         self.positions = self._generate_fixed_positions()
-
+        
     def _generate_fixed_positions(self):
         """
         Generate fixed positions for nodes: enterprises on top, users dispersed at the bottom.
@@ -42,44 +39,62 @@ class DynamicSimulator:
 
     def next_frame(self, event=None):
         """
-        Process the next event and update the graph.
+        Process the next event in the global timeline and update the graph.
         """
-        if self.current_index >= len(self.events):
+        next_event = self.event_manager.get_next_event()
+        if not next_event:
             print("Simulation complete.")
             return
 
-        event = self.events[self.current_index]
+        if next_event["type"] == "data_transmission":
+            self._handle_data_transmission(next_event)
+        elif next_event["type"] == "calculation":
+            self._handle_calculation(next_event)
 
-        if event["type"] == "data_transmission":
-            self._handle_data_transmission(event)
-        elif event["type"] == "calculation":
-            self._handle_calculation(event)
-        elif event["type"] == "remove_edge":
-            self._handle_remove_edge(event)
+        self._draw_graph(next_event)
 
-        self.current_index += 1
-        self._draw_graph(event)
+
 
     def _handle_data_transmission(self, event):
+        """
+        Handle the transmission of data.
+        """
         from_node, to_node = event["from_node"], event["to_node"]
         size = event["size"]
 
+        # Ensure the edge exists temporarily
         if not self.graph.has_edge(from_node, to_node):
             self.graph.add_edge(
-                from_node, to_node, weight=size
+                from_node, to_node,
+                bandwidth=random.randint(10, 100)  # Assign random bandwidth
             )
 
-        print(f"Transmission from {from_node} to {to_node}, Size: {size} MB")
+        # Get bandwidth and calculate transmission time
+        bandwidth = self.graph.edges[from_node, to_node]["bandwidth"]
+        transmission_time = size / bandwidth
 
-    def _handle_start_calculation(self, event):
-        print(f"Calculation started on {event['node']}")
+        print(f"Transmission from {from_node} to {to_node}, Size: {size:.2f} MB, "
+            f"Bandwidth: {bandwidth} Mbps, Time: {transmission_time:.2f} seconds.")
+
+            # Remove the edge after the event
+        #self.graph.remove_edge(from_node, to_node)
 
     def _handle_calculation(self, event):
         """
         Handle the calculation event.
         """
         node = event["node"]
-        print(f"Node {node} is performing a calculation.")
+        task = event["task"]
+        gpu_power = self.graph.nodes[node]["data"].gpu_power  # GPU power in TFLOPS
+        portion = task["portion"]
+
+        # Calculate calculation time
+        calculation_time = portion / (gpu_power * 1e12)
+
+        print(f"Node {node} is performing a calculation, Portion: {portion:.2e} FLOPS, "
+            f"GPU Power: {gpu_power:.2f} TFLOPS, Time: {calculation_time:.2f} seconds.")
+
+
 
     def _handle_end_calculation(self, event):
         """
@@ -124,33 +139,26 @@ class DynamicSimulator:
         """
         Draw the graph dynamically with updated edges and colors.
         """
-        plt.clf()  # Clear the current figure
+        plt.clf()
 
-        # Get active edges from the current event
+        # Highlight active edges and nodes
         active_edges = [event["edge"]] if "edge" in event else []
         active_node = event["node"] if "node" in event else None
 
-        # Create a subgraph with only the active edges
-        temp_graph = nx.DiGraph()
-        temp_graph.add_nodes_from(self.graph.nodes(data=True))
-        temp_graph.add_edges_from(active_edges)
+        edge_colors = ["blue" if edge in active_edges else "gray" for edge in self.graph.edges]
+        edge_widths = [2 if edge in active_edges else 0.5 for edge in self.graph.edges]
 
-        # Highlight the active edges
-        edge_colors = ["blue" for edge in temp_graph.edges]
-        edge_widths = [2 for edge in temp_graph.edges]
-
-        # Color nodes based on their type and activity
         node_colors = []
-        for node, data in temp_graph.nodes(data=True):
+        for node, data in self.graph.nodes(data=True):
             if node == active_node:
-                node_colors.append("yellow")  # Highlight the active node
+                node_colors.append("yellow")
             elif data["type"] == "enterprise":
                 node_colors.append("red")
             else:
                 node_colors.append("green")
 
         nx.draw(
-            temp_graph,
+            self.graph,
             pos=self.positions,
             with_labels=True,
             node_color=node_colors,
@@ -158,10 +166,21 @@ class DynamicSimulator:
             width=edge_widths,
             node_size=800,
         )
-        edge_labels = nx.get_edge_attributes(self.graph, "bandwidth")
-        nx.draw_networkx_edge_labels(self.graph, pos=self.positions, edge_labels=edge_labels)
-        plt.title(f"Event: {event['type']} (Node: {active_node}, Edge: {event.get('edge')})")
+
+        # Extract the current simulation time from the event
+        current_time = event["time"] if "time" in event else 0
+
+        # Add a legend showing the elapsed time and current event
+        legend_text = (f"Simulation Time: {current_time:.2f} seconds\n"
+                    f"Event: {event['type']}\n"
+                    f"Node: {active_node or 'None'}\n"
+                    f"Edge: {event.get('edge') or 'None'}")
+        plt.gca().legend([legend_text], loc='upper right', frameon=False, fontsize=10)
+
         plt.draw()
+
+
+
 
 
     def run(self):
