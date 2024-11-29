@@ -175,7 +175,7 @@ class DynamicSimulator:
                     f"Event: {event['type']}\n"
                     f"Node: {active_node or 'None'}\n"
                     f"Edge: {event.get('edge') or 'None'}")
-        plt.gca().legend([legend_text], loc='upper right', frameon=False, fontsize=10)
+        plt.gca().legend([legend_text], loc='upper right', frameon=True, fontsize=10)
 
         plt.draw()
 
@@ -192,7 +192,7 @@ class DynamicSimulator:
 
         # Add a "Next Frame" button
         ax_button = plt.axes([0.75, 0.05, 0.2, 0.1])  # Adjust size and position
-        button = Button(ax_button, "Next Frame", color='lightblue', hovercolor='lightgreen')
+        button = Button(ax_button, "Next Frame", color='lightblue')
         button.on_clicked(self.next_frame)
 
         # Initial draw
