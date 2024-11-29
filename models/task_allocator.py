@@ -38,8 +38,12 @@ class TaskAllocator:
                 if self.graph.nodes[user]["type"] == "user"
             ]
             available_users = sorted(
-                available_users, key=lambda x: len(x[1].queue)
+                available_users,
+                key=lambda x: x[1].get_priority()
             )[:d]
+
+            print(f"available users : {[( available_user[1].node_id,available_user[1].queue) for available_user in available_users]}")
+
 
             if len(available_users) < d:
                 print(f"Not enough devices available for chain from {enterprise}")
@@ -52,18 +56,25 @@ class TaskAllocator:
 
     def _assign_chain(self, enterprise_id, task, chain_users):
         """
-        Assign a chain of devices to process a task.
+        Assign a chain of devices to process a task, prioritizing users with shorter queues.
         """
         previous_node = enterprise_id
         portion_size = task["complexity"] / len(chain_users)
         current_time = self.current_time
 
         for i, (node_id, user_data) in enumerate(chain_users):
-            # Transmission time to the user
-            bandwidth = random.randint(10, 100)  # Simulated bandwidth in Mbps
-            transmission_time = task["data_size"] / bandwidth
+            transmission_time = task["data_size"] / random.randint(10, 100)  # Simulated bandwidth
+            gpu_time = portion_size / (user_data.gpu_power * 1e12)
 
-            # Add transmission event
+            # Add task to user's queue
+            user_task = {
+                "portion": portion_size,
+                "data_size": task["data_size"],
+                "duration": gpu_time
+            }
+            user_data.add_task(user_task, current_time + transmission_time)
+
+            # Transmission to the user
             edge_to_user = (previous_node, node_id)
             self.event_manager.add_event(
                 current_time + transmission_time,
@@ -74,10 +85,7 @@ class TaskAllocator:
                 edge=edge_to_user
             )
 
-            # Calculation time at the user
-            gpu_time = portion_size / (user_data.gpu_power * 1e12)
-
-            # Add calculation event
+            # Calculation at the user
             self.event_manager.add_event(
                 current_time + transmission_time + gpu_time,
                 "calculation",
@@ -86,16 +94,14 @@ class TaskAllocator:
                 edge=edge_to_user
             )
 
-            # Update current time
+            # Update current time for this chain
             current_time += transmission_time + gpu_time
             previous_node = node_id
 
         # Transmission back to the enterprise
-        bandwidth = random.randint(10, 100)  # Simulated bandwidth in Mbps
-        transmission_time = task["data_size"] / bandwidth
         edge_to_enterprise = (previous_node, enterprise_id)
         self.event_manager.add_event(
-            current_time + transmission_time,
+            current_time,
             "data_transmission",
             from_node=previous_node,
             to_node=enterprise_id,

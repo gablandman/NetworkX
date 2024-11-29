@@ -84,17 +84,23 @@ class DynamicSimulator:
         Handle the calculation event.
         """
         node = event["node"]
-        task = event["task"]
-        gpu_power = self.graph.nodes[node]["data"].gpu_power  # GPU power in TFLOPS
-        portion = task["portion"]
+        user_data = self.graph.nodes[node]["data"]
 
-        # Calculate calculation time
-        calculation_time = portion / (gpu_power * 1e12)
+        # Complete the current task
+        user_data.complete_task()
 
-        print(f"Node {node} is performing a calculation, Portion: {portion:.2e} FLOPS, "
-            f"GPU Power: {gpu_power:.2f} TFLOPS, Time: {calculation_time:.2f} seconds.")
+        # Process the next task in the queue
+        next_task, completion_time = user_data.process_next_task(event["time"])
+        if next_task:
+            self.event_manager.add_event(
+                completion_time,
+                "calculation",
+                node=node,
+                task=next_task,
+            )
 
-
+        print(f"Node {node} completed a task and is processing the next task, "
+            f"Queue length: {len(user_data.queue)}")
 
     def _handle_end_calculation(self, event):
         """

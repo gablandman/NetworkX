@@ -28,7 +28,7 @@ def main():
     """
     # Step 1: Build the graph
     builder = GraphBuilder()
-    builder.create_empty_graph(40, 7)  # 40 users, 3 enterprises
+    builder.create_empty_graph(10, 3)  # 40 users, 3 enterprises
     graph = builder.get_graph()
 
     # Step 2: Initialize EventManager and TaskAllocator
