@@ -102,24 +102,7 @@ class DynamicSimulator:
         print(f"Node {node} completed a task and is processing the next task, "
             f"Queue length: {len(user_data.queue)}")
 
-    def _handle_end_calculation(self, event):
-        """
-        Handle the end of a calculation event.
-        """
-        node = event["node"]
-        print(f"Calculation ended on {node}")
 
-        # Remove the edge used in the current event
-        edge = event.get("edge")
-        if edge in self.graph.edges:
-            self.graph.remove_edge(*edge)
-
-        # Special case: If this is the last edge returning to the enterprise, remove it
-        if event["type"] == "data_transmission" and edge[1] in [
-            n for n, d in self.graph.nodes(data=True) if d["type"] == "enterprise"
-        ]:
-            if edge in self.graph.edges:
-                self.graph.remove_edge(*edge)
 
     def _handle_remove_edge(self, event):
         """
@@ -140,6 +123,8 @@ class DynamicSimulator:
                 bandwidth=random.randint(10, 100),  # Random bandwidth
                 latency=random.randint(10, 50)     # Random latency
         )
+            
+    ## Les deux du dessus sont non utilisés
 
     def _draw_graph(self, event):
         """

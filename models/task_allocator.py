@@ -69,8 +69,8 @@ class TaskAllocator:
             # Add task to user's queue
             user_task = {
                 "portion": portion_size,
-                "data_size": task["data_size"],
-                "duration": gpu_time
+                "data_size": task["data_size"], #a corrriger 
+                "duration": gpu_time #a corrriger 
             }
             user_data.add_task(user_task, current_time + transmission_time)
 
